@@ -8,7 +8,7 @@ export const documents = {
   guide: { label: '使用文档', heading:'用起来，不必靠摸索。', sub:'从第一次连接，到每一个顺手的设置。', eyebrow:'CAMPUS LINK / USER GUIDE', sections:titles(guide), content:prepare(guide) },
   adapters: { label:'方案制作', heading:'把你的学校，加进来。', sub:'从一条真实请求，走到一份可用的连接方案。', eyebrow:'CAMPUS LINK / ADAPTER LAB', sections:titles(adapters), content:prepare(adapters) }
 };
-export const searchIndex = [{title:'软件介绍', text:'Windows 客户端 功能 下载', url:'index.html'}, ...Object.entries(documents).flatMap(([slug, page]) => {
+export const searchIndex = [{title:'软件介绍', text:'Windows macOS 客户端 断线自动重连 网络守护 功能 下载', url:'index.html'}, ...Object.entries(documents).flatMap(([slug, page]) => {
   const items = [{ title:page.label, text:page.sub, url:`${slug}.html` }];
   const parts = page.content.split(/(?=<h[23]\b)/);
   for (const part of parts) {

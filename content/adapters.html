@@ -124,6 +124,7 @@
   <p>只有服务器允许固定回调名时适用。需要随机回调、重复参数或动态值的接口，不应强行套用本例。</p>
 
   <h2 id="adapters-verify">第六步：校验并实际验证</h2>
+  <p>v1.1.0 的“断线自动重连”默认开启。进行协议观察或手动验证前，可暂时在“应用设置 → 网络守护”关闭它，避免周期检测或重连影响测试结果；验证完成后再恢复。应用内手动注销会暂停守护，再次手动连接成功后才恢复，具体行为见<a href="guide.html#reconnect">网络守护使用说明</a>。</p>
   <p>如果有<strong>桌面客户端源码</strong>和 Node.js，可在包含 <code>electron/profiles.cjs</code> 的客户端源码根目录运行相同校验器。本站 CampusLinkPages 仓库不包含该文件；只有本站源码时，请直接使用客户端导入功能做完整校验。以下命令只读文件，不发送请求，将末尾路径换成自己的方案文件。</p>
   <pre><code>node -e "const fs=require('node:fs'); const {parseProfile}=require('./electron/profiles.cjs'); const p=parseProfile(fs.readFileSync(process.argv[1],'utf8')); console.log('配置有效：'+p.name);" .\examples\custom-campus.example.json</code></pre>
   <p>在软件“连接方案”选择“导入连接方案”，再点击“使用此方案”。导入本身只校验和保存，不提交认证；选用后状态检测可能开始。填写账号、密码和必需字段，先检测状态，确认离线后再点击连接。成功后再次检测，并用浏览器确认网络能正常访问；方便断网时测试注销，然后检测是否离线。</p>

@@ -2,6 +2,10 @@
 
 基于 **Vue 3 + Vite** 的多页面网站，包含软件介绍、使用文档、其他校园网连接方案制作教程。开发者：**NingMeng123**。
 
+当前文档面向客户端 **v1.1.0**，覆盖 Windows x64 和 macOS Intel x64 / Apple 芯片 arm64。macOS 发行目标包括 DMG、ZIP，实际附件及签名、公证情况以 [CampusLink Releases](https://github.com/65658dsf/CampusLink/releases) 为准。
+
+v1.1.0 新增默认开启的断线自动重连：确认在线后按间隔检测，默认 30 秒，可设置为 5–3600 的整数秒；只有明确离线才尝试重连。手动注销暂停守护，再次手动连接成功后恢复；没有可用凭据时提示手动连接。文档区分此功能与“开机自启动”“启动后自动连接”，后二者仍默认关闭。
+
 - 介绍页：`index.html`
 - 使用文档：`guide.html`
 - 方案教程：`adapters.html`
