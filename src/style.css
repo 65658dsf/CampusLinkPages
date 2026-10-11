@@ -298,6 +298,9 @@ section[id], h2[id], h3[id] { scroll-margin-top: 103px; }
 .footer-top .brand > span { font-size: 18px; }
 .footer-top .brand i { font-size: 7px; letter-spacing: 1px; }
 .footer-top > p { color: #9ba88c; font-size: 10px; letter-spacing: .5px; }
+.footer-caption { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.icp-link { color: #728278; font-size: 10px; white-space: nowrap; }
+.icp-link:hover, .icp-link:focus-visible { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
 .footer-top > div { margin-left: auto; display: flex; align-items: center; gap: 27px; font-size: 10px; color: #8b9a7d; }
 .footer-top > div a:hover { color: var(--green); }
 .footer-bottom { display: flex; justify-content: space-between; gap: 25px; border-top: 1px solid #e0e7d7; padding-block: 18px 22px; font-size: 8px; color: #a3af97; letter-spacing: .1px; }

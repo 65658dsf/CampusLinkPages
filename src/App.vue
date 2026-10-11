@@ -81,8 +81,8 @@ onUnmounted(() => { clearTimeout(toastTimer); observer?.disconnect(); document.r
   <footer class="site-footer">
     <div class="wrap footer-top"><a class="brand" href="index.html"><img src="/assets/logo.svg" alt="" width="32"
           height="32"><span>岚连<i>Campus Link</i></span></a>
-          <a href="https://beian.miit.gov.cn/" target="_blank">渝ICP备2026005420号-1</a>
-      <p>连接，从简单开始。</p>
+      <p class="footer-caption"><span>连接，从简单开始。</span><a class="icp-link" href="https://beian.miit.gov.cn/"
+          target="_blank" rel="noopener noreferrer">渝ICP备2026005420号-1</a></p>
       <div><a href="guide.html">使用文档</a><a href="adapters.html">方案制作</a><a href="https://github.com/65658dsf">开发者 ↗</a>
       </div>
     </div>
