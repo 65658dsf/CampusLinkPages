@@ -1,0 +1,150 @@
+<div class="prose">
+  <p class="lead">把学校已经能正常使用的认证请求，整理成一份可导入的 JSON。岚连的外部方案采用声明式 HTTP 配置：填写接口、参数和响应规则，即可让登录、注销与状态检测接入同一个界面。</p>
+  <p>教程与当前 <code>schemaVersion: 1</code> 校验器一致。开发者：<strong>NingMeng123</strong> · <a href="https://github.com/65658dsf" target="_blank" rel="noreferrer">GitHub 主页</a>。所有示例地址均为教学占位地址，不能直接连接真实校园网。</p>
+
+  <h2 id="adapters-route">先走通这条制作路线</h2>
+  <ol class="steps">
+    <li><strong>记录网页行为</strong><p>在自己的学校认证页正常登录、查询状态、注销，分别找到对应请求。</p></li>
+    <li><strong>检查能否适配</strong><p>确认三个接口同源，状态查询只读，流程不依赖动态挑战或浏览器会话。</p></li>
+    <li><strong>描述请求与结果</strong><p>把固定结构写入 JSON，账号密码改成模板变量，按实际响应设置判定规则。</p></li>
+    <li><strong>校验、导入、验证</strong><p>先做无网络的结构检查，再由自己操作验证在线、离线和错误状态。</p></li>
+  </ol>
+
+  <h2 id="adapters-capture">第一步：在浏览器找到真实请求</h2>
+  <p>先接入目标学校的 Wi-Fi 或有线网络，用浏览器打开认证页。按 <kbd>F12</kbd>，进入 <strong>Network／网络</strong>，勾选 <strong>Preserve log／保留日志</strong>，清空列表后执行一次正常操作。先查看 <strong>All／全部</strong>：JSONP 常以脚本请求出现，只筛选 Fetch/XHR 可能漏掉它。</p>
+  <h3 id="adapters-capture-login">登录：记录地址、参数与响应</h3>
+  <p>用自己的账号正常登录。在刚产生的请求中找到实际提交认证的一项，检查 Headers 的 Request URL、Request Method，以及 Payload 中的 Query String Parameters、Form Data 或 Request Payload。打开 Response 保存一份本地观察记录，区分数字、字符串和布尔值。图片、统计请求以及登录后跳转的页面通常不是认证接口。</p>
+  <p>一次成功抓包只能证明当时那组请求有效。观察网页再次正常使用时，哪些字段保持不变、哪些会改变，并查看 Initiator／发起程序定位参数来源。不要为了比较而密集登录注销。若变化来自前一个响应、当前时间或随机数，先确认服务是否真的要求它；无法确认时，在适配记录中标明尚未验证，不能宣称已支持。</p>
+  <h3 id="adapters-capture-status">状态：找到独立的只读查询</h3>
+  <p>在已登录状态刷新认证页，观察哪项请求返回在线信息；再在自己准备断开时正常注销，比较同一查询的离线响应。状态接口必须只查询，不能顺便登录、续订或注销。不要把名称含有 <code>status</code> 或方法为 GET 当作只读证明，应核对网页代码和实际行为。</p>
+  <h3 id="adapters-capture-logout">注销：记录独立的退出操作</h3>
+  <p>在方便断网时点击网页注销，记录真实请求和返回。整理成“操作、URL、方法、编码、参数、成功响应、失败响应”七列。失败样本可来自自己已有的正常排错记录，无需反复输错密码。浏览器导出的 HAR、Copy as cURL 和完整 URL 都可能带有凭据，保留在本地分析，分享前单独清理。</p>
+
+  <h2 id="adapters-fit">第二步：判断 v1 能不能完成</h2>
+  <div class="callout"><strong>三个必要条件：</strong>提供完整的 <code>login</code>、<code>logout</code>、<code>status</code>；所有接口与 <code>homepage</code> 同源；状态请求为真正只读的 GET，且不携带密码。缺少任何一项，都不能把接口凑成一个有效方案。</div>
+  <p>“同源”要求协议、主机和端口一致，路径可以不同。例如认证页为 <code>https://campus.example.invalid/</code>，接口可为同源的 <code>/api/login</code>；换成 HTTP、另一个子域或端口 801 就不同源。不要为通过校验把首页随意改成无法代表认证入口的地址。</p>
+  <p>适合 v1 的服务是固定 GET/POST 请求，响应为 JSON、严格 JSONP 或具有明确标记的文本。若网页必须先取 token、计算 RSA/MD5 签名、识别验证码、保留 Cookie、跨站单点登录或跟随重定向，需扩展并测试主程序适配器。外部 JSON 不能执行脚本，也不能填入一个函数来补齐这些能力。</p>
+  <p>内置贵州轻工职业大学方案包含针对该校的 Dr.COM 处理，不是所有 Dr.COM 学校的通用模板。外部方案只能使用 <code>protocol: "http"</code>，不能复制 <code>drcom</code> 名称或覆写内置实现。</p>
+
+  <h2 id="adapters-map">第三步：逐项映射请求</h2>
+  <p>先复制浏览器确认的接口路径，再把查询参数或请求体拆到 <code>data</code>。账号改成 <code>{{username}}</code>，密码改成 <code>{{password}}</code>；学校规定的固定值仍写成字符串。不要把某次请求中的个人账号、客户端地址、Cookie、token 或时间戳直接粘进方案。</p>
+  <div class="table-wrap"><table><thead><tr><th>浏览器看到的请求</th><th>方案写法</th><th>实际发送方式</th></tr></thead><tbody>
+    <tr><td>GET + 查询参数</td><td><code>method: "GET"</code>、<code>encoding: "form"</code></td><td><code>data</code> 编码后放进 URL 查询字符串。</td></tr>
+    <tr><td>POST + Form Data</td><td><code>method: "POST"</code>、<code>encoding: "form"</code></td><td><code>application/x-www-form-urlencoded</code>，不是 multipart 上传。</td></tr>
+    <tr><td>POST + JSON</td><td><code>method: "POST"</code>、<code>encoding: "json"</code></td><td><code>application/json</code>，对象的每个值仍为字符串。</td></tr>
+  </tbody></table></div>
+  <p>填写原始参数值，让应用完成编码。例如密码里的 <code>+</code> 不要先改成 <code>%2B</code>。v1 的通用表单编码不支持重复查询键，也不能定制任意网关要求的原始字节编码或特殊参数重排；也不会生成随机 <code>v</code>、时间戳或回调名。接口若强制这些行为，应使用专门适配器，不要把一次成功请求的随机值当永久配置。</p>
+
+  <h3 id="adapters-top-fields">顶层字段完整表</h3>
+  <div class="table-wrap"><table><thead><tr><th>字段</th><th>必填</th><th>格式与限制</th></tr></thead><tbody>
+    <tr><td><code>schemaVersion</code></td><td>是</td><td>数字 <code>1</code>。</td></tr>
+    <tr><td><code>id</code></td><td>是</td><td>3–64 字符，小写字母开头，只含小写字母、数字、连字符；不能用 <code>builtin-</code> 前缀。</td></tr>
+    <tr><td><code>name</code></td><td>是</td><td>非空显示名称，最多 80 字符。</td></tr>
+    <tr><td><code>description</code></td><td>否</td><td>说明，提供时须非空，最多 800 字符。</td></tr>
+    <tr><td><code>version</code></td><td>是</td><td>非空版本字符串，最多 32 字符，例如 <code>1.0.0</code>。</td></tr>
+    <tr><td><code>author</code></td><td>否</td><td>提供时须非空，最多 80 字符；本项目开发署名使用 <code>NingMeng123</code>。</td></tr>
+    <tr><td><code>homepage</code></td><td>是</td><td>固定 HTTP/HTTPS URL，最多 2048 字符；不能含 URL 用户名密码、<code>#</code> 片段或模板。</td></tr>
+    <tr><td><code>protocol</code></td><td>是</td><td>外部方案固定为字符串 <code>http</code>。</td></tr>
+    <tr><td><code>timeoutMs</code></td><td>否</td><td>1000–30000 的整数，单位毫秒；默认 10000。</td></tr>
+    <tr><td><code>fields</code></td><td>否</td><td>额外输入项数组，最多 12 项。</td></tr>
+    <tr><td><code>operations</code></td><td>是</td><td>包含且只包含 <code>login</code>、<code>logout</code>、<code>status</code> 三项。</td></tr>
+  </tbody></table></div>
+  <p>文件使用 UTF-8，大小不超过 64 KiB。JSON 不能有注释、尾逗号或单引号字符串。配置不接受表中未声明的额外属性；<code>__proto__</code>、<code>prototype</code>、<code>constructor</code> 是保留名。</p>
+
+  <h3 id="adapters-operation-fields">每个操作的字段</h3>
+  <div class="table-wrap"><table><thead><tr><th>字段</th><th>必填</th><th>格式与限制</th></tr></thead><tbody>
+    <tr><td><code>url</code></td><td>是</td><td>固定同源地址，限制与首页 URL 相同，不支持模板替换。</td></tr>
+    <tr><td><code>method</code></td><td>是</td><td>大写 <code>GET</code> 或 <code>POST</code>；<code>status</code> 只能 GET。</td></tr>
+    <tr><td><code>encoding</code></td><td>是</td><td><code>form</code> 或 <code>json</code>；GET 只能 <code>form</code>。</td></tr>
+    <tr><td><code>headers</code></td><td>否</td><td>仅 <code>Accept</code>、<code>X-Requested-With</code>；值为最多 300 字符的字符串，禁止换行。</td></tr>
+    <tr><td><code>data</code></td><td>是</td><td>对象，最多 50 项；参数名非空且最多 100 字符，值必须为字符串且最多 2048 字符；无参数用 <code>{}</code>。</td></tr>
+    <tr><td><code>success</code></td><td>是</td><td>一条成功判定规则；状态操作中代表在线。</td></tr>
+    <tr><td><code>failure</code></td><td>是</td><td>一条失败判定规则；状态操作中代表离线。</td></tr>
+  </tbody></table></div>
+  <p><code>Content-Type</code> 由编码自动设置。Cookie、Authorization、Referer、User-Agent 等自定义头不在外部方案能力内。即使 JSON 接口要求 <code>{"service":1}</code>，也不能用 <code>"service": "1"</code> 冒充同一种类型；v1 不支持数字、布尔、数组或嵌套对象形式的请求参数值。</p>
+
+  <h2 id="adapters-rules">第四步：让结果判断有依据</h2>
+  <p>HTTP 200 只说明拿到了响应，不代表账号已认证。先比较成功与失败样本，再选不会同时出现的标记。登录成功规则表示请求被服务接受；还应通过独立状态查询核对是否真的在线。注销成功则应对应已经退出，而不是“请确认是否注销”的提示页。</p>
+  <h3 id="adapters-json-rule">JSON 与 JSONP：类型必须一致</h3>
+  <p class="code-label">响应为 {"data":{"online":true}} 时的规则</p>
+  <pre><code>{ "type": "json", "path": "data.online", "equals": true }</code></pre>
+  <p><code>path</code> 最多 200 字符，按点分层，只允许英文字母、数字、下划线；数字段可以读取数组索引。<code>equals</code> 仅接受字符串、数字或布尔值，字符串最多 500 字符。采用严格相等：<code>1</code>、<code>"1"</code>、<code>true</code> 是三个不同值；不支持 null、正则、比较运算或多个候选值。</p>
+  <p>JSONP 例如 <code>dr1003({"result":1});</code> 也使用 JSON 规则。应用仅取回调包装里的严格 JSON，不执行 JavaScript。含单引号对象、赋值语句或计算表达式的响应不属于支持格式。</p>
+  <h3 id="adapters-text-rule">文本：选择独有的稳定标记</h3>
+  <pre><code>{ "type": "text", "includes": "SESSION_IS_ONLINE" }</code></pre>
+  <p><code>includes</code> 是最多 500 字符的非空文本，区分大小写。避免用“登录”“成功”等也存在于表单、脚本模板中的词。文本规则只能使用 <code>type/includes</code>；JSON 规则只能使用 <code>type/path/equals</code>。两条规则不能相同，也不能在真实响应中同时命中；都未命中时同样报告未知响应。</p>
+
+  <h2 id="adapters-full-example">完整可导入示例</h2>
+  <p>下面展示三操作齐全的文件。先<a href="examples/custom-campus.example.json" download>下载 JSON 示例</a>，再替换成自己核实的地址、参数和规则。示例的运营商选项也是假设值，不能据此推断学校实际提供哪些网络服务。</p>
+  <pre><code data-example="full"></code></pre>
+  <p>该示例把登录、注销响应中的布尔字段 <code>success</code> 用于结果判断，把状态响应中的 <code>online</code> 用于在线判断。字段名只是示例；若学校返回 <code>{"result":"1"}</code>，请根据实测分别改写路径和类型。</p>
+
+  <h2 id="adapters-custom-fields">第五步：添加学校需要的输入项</h2>
+  <p><code>fields</code> 用来描述运营商、校区或需要手动填写的网络参数。没有 <code>options</code> 时显示文本框，有选项时显示下拉框。它们属于普通设置，不会按密码加密保存，因此不能用于存储密码、Cookie 或令牌。</p>
+  <div class="table-wrap"><table><thead><tr><th>字段</th><th>要求</th></tr></thead><tbody>
+    <tr><td><code>key</code></td><td>必填且唯一；1–40 字符，字母开头，随后为字母、数字或下划线；不能为 <code>username</code>、<code>password</code> 或上述保留名。</td></tr>
+    <tr><td><code>label</code></td><td>必填非空界面标签，最多 80 字符。</td></tr>
+    <tr><td><code>default</code></td><td>可选字符串，最多 500 字符，可为空；有选项时必须属于某个选项值。</td></tr>
+    <tr><td><code>placeholder</code></td><td>可选非空提示，最多 160 字符。</td></tr>
+    <tr><td><code>options</code></td><td>可选数组，1–20 项；每项仅有 <code>label</code> 和 <code>value</code>，标签非空且最多 80 字符，值为最多 100 字符的字符串。</td></tr>
+  </tbody></table></div>
+  <pre><code>"fields": [
+  { "key": "campus", "label": "校区", "default": "north",
+    "options": [ { "label": "示例校区", "value": "north" } ] }
+]</code></pre>
+  <p>在请求中写 <code>"campus_id": "{{campus}}"</code> 即可引用。输入值最多 500 字符，不能含换行或空字符；下拉字段只能取列出的值。调用时若未提供此字段，依次使用默认值、首个选项、空字符串；显式输入空字符串不会自动改成默认值。</p>
+  <p>内置变量是 <code>{{username}}</code>、<code>{{password}}</code>，以及默认空值的 <code>{{ip}}</code>、<code>{{mac}}</code>、<code>{{acIp}}</code>、<code>{{acName}}</code>。网络参数不会自动发现；需要时将同名参数声明为自定义字段，交由用户填写。模板仅替换 <code>data</code> 中的字符串，可拼接经学校确认的账号后缀，不执行表达式或编码函数。</p>
+
+  <h2 id="adapters-request-examples">GET、POST JSON 与 JSONP 怎么写</h2>
+  <p>以下是单个操作的片段，需放入完整文件对应位置；不能把片段直接当作方案导入。</p>
+  <h3 id="adapters-get-example">只读 GET 状态查询</h3>
+  <pre><code>{
+  "url": "https://campus.example.invalid/api/status",
+  "method": "GET", "encoding": "form", "data": {},
+  "success": { "type": "json", "path": "online", "equals": true },
+  "failure": { "type": "json", "path": "online", "equals": false }
+}</code></pre>
+  <h3 id="adapters-post-example">POST JSON 登录</h3>
+  <pre><code>{
+  "url": "https://campus.example.invalid/api/login",
+  "method": "POST", "encoding": "json",
+  "data": { "account": "{{username}}", "password": "{{password}}" },
+  "success": { "type": "json", "path": "code", "equals": 0 },
+  "failure": { "type": "json", "path": "code", "equals": 1 }
+}</code></pre>
+  <p>此处响应 <code>code</code> 是数字，但请求体的账号密码仍是字符串。只有确认服务确实以 0 和 1 区分结果才可使用这组规则。</p>
+  <h3 id="adapters-jsonp-example">返回 JSONP 的状态接口</h3>
+  <pre><code>{
+  "url": "https://campus.example.invalid/api/check",
+  "method": "GET", "encoding": "form",
+  "data": { "callback": "dr1003" },
+  "success": { "type": "json", "path": "result", "equals": 1 },
+  "failure": { "type": "json", "path": "result", "equals": 0 }
+}</code></pre>
+  <p>只有服务器允许固定回调名时适用。需要随机回调、重复参数或动态值的接口，不应强行套用本例。</p>
+
+  <h2 id="adapters-verify">第六步：校验并实际验证</h2>
+  <p>如果有<strong>桌面客户端源码</strong>和 Node.js，可在包含 <code>electron/profiles.cjs</code> 的客户端源码根目录运行相同校验器。本站 CampusLinkPages 仓库不包含该文件；只有本站源码时，请直接使用客户端导入功能做完整校验。以下命令只读文件，不发送请求，将末尾路径换成自己的方案文件。</p>
+  <pre><code>node -e "const fs=require('node:fs'); const {parseProfile}=require('./electron/profiles.cjs'); const p=parseProfile(fs.readFileSync(process.argv[1],'utf8')); console.log('配置有效：'+p.name);" .\examples\custom-campus.example.json</code></pre>
+  <p>在软件“连接方案”选择“导入连接方案”，再点击“使用此方案”。导入本身只校验和保存，不提交认证；选用后状态检测可能开始。填写账号、密码和必需字段，先检测状态，确认离线后再点击连接。成功后再次检测，并用浏览器确认网络能正常访问；方便断网时测试注销，然后检测是否离线。</p>
+  <p>再检查错误或无法识别的响应不会显示在线。不要用真实账号做无人值守循环测试；开发者可用本地模拟服务器覆盖编码与响应情况。静态校验通过，只能证明配置结构有效。</p>
+  <p>每次实际验证只改变一个因素，并记录方案版本、操作顺序和脱敏结果。例如先确认表单编码，再检查账号后缀，最后调整响应规则；同时更换多项参数会让成功原因难以复现。验证状态时，不要只看登录按钮消失，还要确认独立查询给出在线结果；如果网页和查询结论冲突，应保留未知状态并继续核对协议。</p>
+  <p>最多保存 30 个外部方案，同一 <code>id</code> 不能重复导入。更新时先移除旧外部方案再导入，或使用新的唯一 ID。在线时不能切换或移除当前方案；内置方案不能移除。</p>
+
+  <h2 id="adapters-troubleshooting">按错误出现的位置排查</h2>
+  <div class="table-wrap"><table><thead><tr><th>现象</th><th>检查重点</th></tr></thead><tbody>
+    <tr><td>导入提示格式或字段错误</td><td>检查 JSON 语法、额外字段、长度限制和所有 <code>data</code> 值是否为字符串。</td></tr>
+    <tr><td>请求必须同源</td><td>逐个比较协议、主机与端口；路径相似不代表同源。</td></tr>
+    <tr><td>未声明模板变量</td><td>核对大小写及 <code>fields.key</code>，不能在 URL 或请求头放模板。</td></tr>
+    <tr><td>HTTP 错误、超时或无法访问</td><td>确认接入校园网络、地址可达、接口是否重定向；应用不跟随 HTTP 重定向，正文上限为 1 MiB。</td></tr>
+    <tr><td>HTTP 200 却认证失败</td><td>打开活动日志的响应详情，检查是否返回 HTML 错误页、业务拒绝或不同类型的字段。</td></tr>
+    <tr><td>规则均未命中或同时命中</td><td>对照实际正文，核对路径、严格类型及文本标记，选择互斥判定，不放宽为任意响应都成功。</td></tr>
+    <tr><td>网页可用，软件不可用</td><td>检查是否依赖 Cookie、动态签名、额外请求头、跨源或特殊编码；这些差异可能需要代码适配。</td></tr>
+  </tbody></table></div>
+  <p>查看日志时保留服务器业务错误的含义，不把所有错误都归为密码错误。状态查询超时、HTTP 错误或未知响应表示“无法确认”，不等于离线，也不应成为自动重试密码的理由。</p>
+  <p>日志详情用于查看请求位置、HTTP 状态和经过脱敏的响应正文。正文可能被截断，因此缺少某个字段时先确认是否已经显示完整；复制给他人前仍应复查内容。页面响应中的脚本只作为文本分析，不要粘贴到浏览器控制台执行。</p>
+
+  <h2 id="adapters-sharing">发布前检查能力边界与隐私</h2>
+  <p>v1 不支持动态 token 传递、Cookie 会话维持、RSA/MD5 运算、验证码、重定向链、自动读取 IP/MAC/AC、WebSocket、UDP、PPPoE、外部命令或 JavaScript 扩展。需要这些能力时，保留脱敏协议说明，在主程序中新增适配并用模拟服务验证。</p>
+  <p>分享文件只保留服务器地址、公开协议结构和通用选项。逐项检查 URL 查询、<code>data</code>、默认值、描述及附带截图，删除个人账号、密码、Cookie、token、客户端 IP/MAC 和私有会话正文。动态秘密不能通过“写死到配置”解决；示例下载与完整抓包应分开提供。</p>
+</div>

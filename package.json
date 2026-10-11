@@ -1,0 +1,21 @@
+{
+  "name": "campus-link-pages",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "岚连 Campus Link 介绍与文档站",
+  "author": "NingMeng123",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "check": "node scripts/check.mjs",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "vue": "^3.5.43"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.10",
+    "vite": "^8.3.4"
+  }
+}
